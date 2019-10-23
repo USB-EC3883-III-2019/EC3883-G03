@@ -44,7 +44,7 @@ void setup() {
   
   bsy = bly = bsly = 800;
   
-  String texto = "Log de data: \n";
+  String texto = "Registro de la data: \n";
   String[] linea = split(texto, '\n');
   saveStrings("test.txt", linea);
 
@@ -71,8 +71,8 @@ void draw() {
     if(blon == true)
       lidar();
      
-    //if(bslon == true)
-     //solindar();
+    if(bslon == true)
+     solindar();
     
     bitacora(); 
      
@@ -341,11 +341,40 @@ rect(0,0,width,height);
   noStroke();
 }
 
+void solindar(){
+  float px; // valor de posicion en X recibida movida en el angulo
+  float py; // valor de posicion en Y recibida movida en el angulo
+  
+  float ang_m = float(posicion)*3.75*2*PI/360;        // Convierto el valor de posicion en radianes
+        ang_m = ang_m - PI/4;
+      
+rect(0,0,width,height);
+       
+  for(byte i = 0; i<73; i ++){
+    
+    ang_m = float(i)*3.75*2*PI/360;        // Convierto el valor de posicion en radianes
+    ang_m = ang_m - PI/4;
+    
+    px = width/2 + cos(ang_m)*solindar[i]/10;
+    py = height/2 - sin(ang_m)*solindar[i]/10;
+    
+    if(solindar[i] != 0){
+      stroke(255);
+      strokeWeight(1);
+      fill(255,0,255);
+      circle(px,py, 20);
+    }
+  }
+  
+  noFill();
+  noStroke();
+}
+
 void bitacora(){
 
   float angulo = posicion*3.75;
   String[] registro = loadStrings("test.txt");
-  String nueva_data = "Angulo = " +angulo+ "° - Sonar = "+ int(sonar[posicion])+"cm - Lidar = "+ int(lidar[posicion])+ "cm - SoLindar = "+ int(solindar[posicion]) +"cm";
+  String nueva_data = "Angulo: " +angulo+ "°\t Sonar: "+ int(sonar[posicion])+"cm\t Lidar: "+ int(lidar[posicion])+ "cm\t SoLindar: "+ int(solindar[posicion]) +"cm";
   String[]  data_split = split(nueva_data, '\n');
   
   String[] registro_nuevo = concat(registro, data_split);
