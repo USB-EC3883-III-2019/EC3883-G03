@@ -6,6 +6,7 @@ byte sentido = 0;   // controlo el sentido de de barrido del radar
 byte[] leer =new byte[4];        // arreglo donde se va a guardar la data recibida por puerto serial
 char[] lidar = new char[128];
 char[] sonar = new char[128];
+char[] solindar = new char[128];
 
 byte i = 0;
 
@@ -42,6 +43,10 @@ void setup() {
   bslx = 675;
   
   bsy = bly = bsly = 800;
+  
+  String texto = "Log de data: \n";
+  String[] linea = split(texto, '\n');
+  saveStrings("test.txt", linea);
 
   String portName = Serial.list()[0];
   myPort = new Serial(this, portName, 9600);
@@ -58,7 +63,7 @@ void draw() {
     radar();
     estatus_botones();
     
-     println(" lidar =  " +int(lidar[posicion])+ " ");
+    println(" posicion =  " +posicion+ " ");
     
     if(bson == true)
       sonar();
@@ -68,6 +73,9 @@ void draw() {
      
     //if(bslon == true)
      //solindar();
+    
+    bitacora(); 
+     
     i = 0;
   }
 }
@@ -107,6 +115,8 @@ void desentramado() {                       // funcion que nos permite desempaqu
   aux[1] = char(leer[3] & 127);             // hago AND de leer[3] con 01111111, para limpiar el bit de cabecera
   lidar[posicion] = char(aux[0] | aux[1]);  // uno la data de aux[0] y aux[1] y la guar en lidar en la posicion que le corresponde
   
+  solindar[posicion] = char((sonar[posicion] + lidar[posicion]) / 2);
+  
 }
 
 void mousePressed(){
@@ -131,7 +141,7 @@ void mousePressed(){
 
 }
 
-boolean overCircle(int x, int y, int diameter) {    //  Funcion que le permite identificar si el puntero esta sobre uno de los botones
+boolean overCircle(int x, int y, int diameter) {    //  Funcion que permite identificar si el puntero esta sobre uno de los botones
   float disX = x - mouseX;
   float disY = y - mouseY;
   if (sqrt(sq(disX) + sq(disY)) < diameter/2 ) {
@@ -329,4 +339,18 @@ rect(0,0,width,height);
   
   noFill();
   noStroke();
+}
+
+void bitacora(){
+
+  float angulo = posicion*3.75;
+  String[] registro = loadStrings("test.txt");
+  String nueva_data = "Angulo = " +angulo+ "° - Sonar = "+ int(sonar[posicion])+"cm - Lidar = "+ int(lidar[posicion])+ "cm - SoLindar = "+ int(solindar[posicion]) +"cm";
+  String[]  data_split = split(nueva_data, '\n');
+  
+  String[] registro_nuevo = concat(registro, data_split);
+  
+  saveStrings("test.txt", registro_nuevo);
+  
+ 
 }
