@@ -1,12 +1,12 @@
 import processing.serial.*;  // Libreria para el uso del puerto serial
 
 byte posicion;
-byte sentido = 0;   // controlo el sentido de de barrido del radar
+byte sentido = 0;                // controlo el sentido de de barrido del radar
+byte[] leer = new byte[4];        // arreglo donde se va a guardar la data recibida por puerto serial
 
-byte[] leer =new byte[4];        // arreglo donde se va a guardar la data recibida por puerto serial
-char[] lidar = new char[128];
-char[] sonar = new char[128];
-char[] solindar = new char[128];
+int[] lidar = new int[128];
+int[] sonar = new int[128];
+int[] solindar = new int[128];
 
 byte i = 0;
 
@@ -25,6 +25,9 @@ boolean bslover = false;
 boolean bson = false;
 boolean blon = false;
 boolean bslon = false;
+boolean filtro = false;
+
+PrintWriter log;
 
 Serial myPort;      // Crea un objeto de clase serial
 
@@ -44,9 +47,8 @@ void setup() {
   
   bsy = bly = bsly = 800;
   
-  String texto = "Registro de la data: \n";
-  String[] linea = split(texto, '\n');
-  saveStrings("test.txt", linea);
+  log = createWriter("log.txt");
+  log.print("Registro de la data: \n\n");
 
   String portName = Serial.list()[0];
   myPort = new Serial(this, portName, 9600);
@@ -63,20 +65,94 @@ void draw() {
     radar();
     estatus_botones();
     
-    println(" posicion =  " +posicion+ " ");
     
-    if(bson == true)
+    println("sonar|lidar|solindar =  " +sonar[posicion]+ "|"+lidar[posicion]+ "|"+solindar[posicion]);
+    
+    if(bson == true){
       sonar();
+      stroke(255);
+      fill(0,255,0);
+      circle(bsx, bsy - 50, 20); 
+    } else{
+      stroke(255);
+      fill(0,0,0);
+      circle(bsx, bsy - 50, 20);
+    }
     
-    if(blon == true)
+    noFill();
+    
+    if(blon == true){
       lidar();
+      stroke(255);
+      fill(0,255,0);
+      circle(blx, bly - 50, 20); 
+    } else{
+      stroke(255);
+      fill(0,0,0);
+      circle(blx, bly - 50, 20);
+    }
+    
+    noFill(); 
      
-    if(bslon == true)
-     solindar();
+    if(bslon == true){
+      solindar();
+      stroke(255);
+      fill(0,255,0);
+      circle(bslx, bsly - 50, 20); 
+    } else{
+      stroke(255);
+      fill(0,0,0);
+      circle(bslx, bsly - 50, 20);
+    }
+    
+    noFill();
+
+    if(filtro == true){
+      stroke(255);
+      fill(0,255,0);
+      circle(1069, 120, 20); 
+    } else {
+      stroke(255);
+      fill(0,0,0);
+      circle(1069, 120, 20);
+    }
+    
+    noFill();
     
     bitacora(); 
      
     i = 0;
+    
+    fill(255);
+    rect(bsx-20,bsy+40,40,10);
+    
+    fill(255);
+    rect(blx-20,bly+40,38,10);
+    
+    fill(255);
+    rect(bslx-28,bsly+40,63,10);
+    
+    fill(255);
+    rect(1050,150,40,10);
+    
+    stroke(255);
+    fill(0,0,255);
+    text("Sonar",bsx - 20, bsy + 50);
+    
+    stroke(255);
+    fill(255,0,0);
+    text("Lidar",blx - 18, bly + 50);
+    
+    stroke(255);
+    fill(255,0,255);
+    text("SoLindar",bslx - 27, bsly + 50);
+    
+    stroke(255);
+    fill(0);
+    text("Filtro",1050, 161);
+    
+    noFill();
+    noStroke();
   }
 }
 
@@ -99,23 +175,45 @@ void serialEvent(Serial myPort) {
 
 void desentramado() {                       // funcion que nos permite desempaquetar la data recibida del puerto serial, para su posterior uso
   
-  char[] aux = new char[2];                 // defino una variable auxiliar para el proceso desempaquetado
+  int[] aux = new int[2];                 // defino una variable auxiliar para el proceso desempaquetado
   
-  aux[0] = char(leer[0]);                   // aux[0] = leer[0] en valor char, ya que leer[i] es una variable tipo byte
+  if(int(leer[1]) > 191)
+    filtro = true;
+  else
+    filtro = false;
+  
+  aux[0] = leer[0];                   // aux[0] = leer[0] en valor char, ya que leer[i] es una variable tipo byte
   posicion = byte(aux[0]);                  // posicion = aux[0] en valor byte, con esto tengo la posicion actual del motor
   
-  aux[0] = char(leer[1] & 127);             // hago un AND de leer[1] con 0111111, para limpiarme el bit de cabecera
-  aux[0] = char(aux[0] << 2);               // shifteo 2 bits a la izquierda para incluir los otros bit faltantes del sonar
-  aux[1] = char(leer[2] & 96);              // hago AND de leer[2] con 01100000, para limpiar el bit de cabecera y la data que no es del sonar
-  aux[1] = char(aux[1] >> 5);               // shifteo 5 bits a la izquierda la data de aux[1] para luego combinarla con aux[0] y tener la data del sonar
-  sonar[posicion] = char(aux[0] | aux[1]);  // uno la data de aux[0] y aux[1] y la guardo en sonar en la posicion que le corresponde 
+  aux[0] = leer[1] & 63;              // hago un AND de leer[1] con 0011111, para limpiarme el bit de cabecera y el del filtro
+  aux[0] = aux[0] << 2;               // shifteo 2 bits a la izquierda para incluir los otros bit faltantes del sonar
+  aux[1] = leer[2] & 96;              // hago AND de leer[2] con 01100000, para limpiar el bit de cabecera y la data que no es del sonar
+  aux[1] = aux[1] >> 5;               // shifteo 5 bits a la izquierda la data de aux[1] para luego combinarla con aux[0] y tener la data del sonar
+  sonar[posicion] = (aux[0] | aux[1])*61/58;  // uno la data de aux[0] y aux[1] y la guardo en sonar en la posicion que le corresponde 61us / 58cm
 
-  aux[0] = char(leer[2] & 31);              // hago AND de leer[2] con 00011111, para limpiar el bit de la cabecera y la data que no es del lidar
-  aux[0] = char(aux[0] << 7);               // shifteo 7 bits a la izquierda para incluir los bits bastante del lidar
-  aux[1] = char(leer[3] & 127);             // hago AND de leer[3] con 01111111, para limpiar el bit de cabecera
-  lidar[posicion] = char(aux[0] | aux[1]);  // uno la data de aux[0] y aux[1] y la guar en lidar en la posicion que le corresponde
+  aux[0] = leer[2] & 31;                // hago AND de leer[2] con 00011111, para limpiar el bit de la cabecera y la data que no es del lidar
+  aux[0] = aux[0] << 7;                 // shifteo 7 bits a la izquierda para incluir los bits bastante del lidar
+  aux[1] = leer[3] & 127;               // hago AND de leer[3] con 01111111, para limpiar el bit de cabecera
+  lidar[posicion] = (aux[0] | aux[1]);  // uno la data de aux[0] y aux[1] y la guar en lidar en la posicion que le corresponde
+  lidar[posicion] = int(369577*pow(lidar[posicion], -1.42));
+
   
-  solindar[posicion] = char((sonar[posicion] + lidar[posicion]) / 2);
+  if((lidar[posicion]>80) && (sonar[posicion]<80))
+      solindar[posicion] = sonar[posicion];
+
+  else  if ((lidar[posicion] < 10) && (sonar[posicion] < 80))
+      solindar[posicion] = sonar[posicion];
+
+  else if((lidar[posicion]<80) && (sonar[posicion]>80))
+      solindar[posicion] = lidar[posicion];  
+ 
+  else if((lidar[posicion]>80) && (sonar[posicion]>80))
+      solindar[posicion] = (sonar[posicion] + lidar[posicion])/2;    
+    
+  else  if(abs(sonar[posicion] - lidar[posicion]) < 5)
+    solindar[posicion] = (sonar[posicion] + lidar[posicion])/2;
+  else
+    solindar[posicion] = sonar[posicion];
   
 }
 
@@ -203,6 +301,7 @@ void estatus_botones(){
   ellipse(bslx, bsly, bsize, bsize);
   
   noFill();
+  noStroke();
   
 }
 
@@ -274,7 +373,7 @@ void radar() {
   px = width/2 + cos( ang_m  )*450;
   py = height/2 - sin( ang_m  )*450;
   
-  stroke(0,255,0,120);
+  stroke(0,255,255);
   strokeWeight(5);
   line(width/2,height/2,px,py);
       
@@ -297,14 +396,14 @@ rect(0,0,width,height);
     ang_m = float(i)*3.75*2*PI/360;        // Convierto el valor de posicion en radianes
     ang_m = ang_m - PI/4;
     
-    px = width/2 + cos(ang_m)*sonar[i];
-    py = height/2 - sin(ang_m)*sonar[i];
+    px = width/2 + cos(ang_m)*sonar[i]*5.6;       
+    py = height/2 - sin(ang_m)*sonar[i]*5.6;
     
     if(sonar[i] != 0){
-      stroke(255);
-      strokeWeight(1);
-      fill(0,0,255);
-      circle(px,py, 20);
+      stroke(0,0,255);
+      strokeWeight(3);
+      fill(255);
+      if (sonar[i]<= 80) circle(px,py, 10);
     }
   }
   
@@ -326,14 +425,14 @@ rect(0,0,width,height);
     ang_m = float(i)*3.75*2*PI/360;        // Convierto el valor de posicion en radianes
     ang_m = ang_m - PI/4;
     
-    px = width/2 + cos(ang_m)*lidar[i]/10;
-    py = height/2 - sin(ang_m)*lidar[i]/10;
+    px = width/2 + cos(ang_m)*lidar[i]*5.6;
+    py = height/2 - sin(ang_m)*lidar[i]*5.6;
     
     if(lidar[i] != 0){
-      stroke(255);
-      strokeWeight(1);
-      fill(255,0,0);
-      circle(px,py, 20);
+      stroke(255,0,0);
+      strokeWeight(3);
+      fill(255);
+      if (lidar[i]<= 80) circle(px,py, 10);
     }
   }
   
@@ -355,14 +454,14 @@ rect(0,0,width,height);
     ang_m = float(i)*3.75*2*PI/360;        // Convierto el valor de posicion en radianes
     ang_m = ang_m - PI/4;
     
-    px = width/2 + cos(ang_m)*solindar[i]/10;
-    py = height/2 - sin(ang_m)*solindar[i]/10;
+    px = width/2 + cos(ang_m)*solindar[i]*5.6;
+    py = height/2 - sin(ang_m)*solindar[i]*5.6;
     
     if(solindar[i] != 0){
-      stroke(255);
-      strokeWeight(1);
-      fill(255,0,255);
-      circle(px,py, 20);
+      stroke(255,0,255);
+      strokeWeight(3);
+      fill(255);
+      if (solindar[i]<= 80) circle(px,py, 10);
     }
   }
   
@@ -373,13 +472,6 @@ rect(0,0,width,height);
 void bitacora(){
 
   float angulo = posicion*3.75;
-  String[] registro = loadStrings("test.txt");
-  String nueva_data = "Angulo: " +angulo+ "°\t Sonar: "+ int(sonar[posicion])+"cm\t Lidar: "+ int(lidar[posicion])+ "cm\t SoLindar: "+ int(solindar[posicion]) +"cm";
-  String[]  data_split = split(nueva_data, '\n');
-  
-  String[] registro_nuevo = concat(registro, data_split);
-  
-  saveStrings("test.txt", registro_nuevo);
-  
- 
+  log.print("Angulo: " +angulo+ "°\t Sonar: "+ int(sonar[posicion])+"cm\t Lidar: "+ int(lidar[posicion])+ "cm\t SoLindar: "+ int(solindar[posicion]) +"cm \n");
+
 }
